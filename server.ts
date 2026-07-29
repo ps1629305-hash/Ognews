@@ -121,7 +121,7 @@ async function startServer() {
 
   // GET /api/posts - Get posts with filters & pagination
   app.get('/api/posts', (req: Request, res: Response) => {
-    let posts = [...dbData.posts];
+    let posts = Array.isArray(dbData.posts) ? [...dbData.posts] : [];
     const { category, tag, search, status, featured, trending, page = '1', limit = '10' } = req.query;
 
     if (status) {
@@ -138,7 +138,7 @@ async function startServer() {
     }
 
     if (tag) {
-      posts = posts.filter((p) => p.tags.some((t) => t.toLowerCase() === (tag as string).toLowerCase()));
+      posts = posts.filter((p) => (p.tags || []).some((t) => t.toLowerCase() === (tag as string).toLowerCase()));
     }
 
     if (featured === 'true') {
@@ -153,15 +153,15 @@ async function startServer() {
       const q = (search as string).toLowerCase();
       posts = posts.filter(
         (p) =>
-          p.title.toLowerCase().includes(q) ||
-          p.excerpt.toLowerCase().includes(q) ||
-          p.content.toLowerCase().includes(q) ||
-          p.tags.some((t) => t.toLowerCase().includes(q))
+          (p.title || '').toLowerCase().includes(q) ||
+          (p.excerpt || '').toLowerCase().includes(q) ||
+          (p.content || '').toLowerCase().includes(q) ||
+          (p.tags || []).some((t) => t.toLowerCase().includes(q))
       );
     }
 
     // Sort by publishedAt desc
-    posts.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+    posts.sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
 
     const pageNum = parseInt(page as string, 10) || 1;
     const limitNum = parseInt(limit as string, 10) || 10;
@@ -173,13 +173,14 @@ async function startServer() {
       posts: paginatedPosts,
       total,
       page: pageNum,
-      totalPages: Math.ceil(total / limitNum),
+      totalPages: Math.ceil(total / limitNum) || 1,
     });
   });
 
   // GET /api/posts/:slug - Get single post by slug & increment views
   app.get('/api/posts/:slug', (req: Request, res: Response) => {
     const slug = req.params.slug;
+    if (!Array.isArray(dbData.posts)) dbData.posts = [];
     const postIndex = dbData.posts.findIndex((p) => p.slug === slug || p.id === slug);
 
     if (postIndex === -1) {
@@ -187,18 +188,22 @@ async function startServer() {
     }
 
     // Increment views
+    if (typeof dbData.posts[postIndex].viewsCount !== 'number') {
+      dbData.posts[postIndex].viewsCount = 0;
+    }
     dbData.posts[postIndex].viewsCount += 1;
     saveDB();
 
     const post = dbData.posts[postIndex];
 
     // Find related posts in same category or matching tags
+    const postTags = post.tags || [];
     const related = dbData.posts
-      .filter((p) => p.id !== post.id && p.status === 'published' && (p.categoryId === post.categoryId || p.tags.some(t => post.tags.includes(t))))
+      .filter((p) => p.id !== post.id && p.status === 'published' && (p.categoryId === post.categoryId || (p.tags || []).some(t => postTags.includes(t))))
       .slice(0, 3);
 
     // Get approved comments
-    const comments = dbData.comments.filter((c) => c.postId === post.id && c.status === 'approved');
+    const comments = (dbData.comments || []).filter((c) => c.postId === post.id && c.status === 'approved');
 
     res.json({
       post,
@@ -214,18 +219,30 @@ async function startServer() {
       return res.status(400).json({ error: 'Title and Content are required.' });
     }
 
-    const category = dbData.categories.find((c) => c.id === postData.categoryId) || dbData.categories[0];
-    const slug =
-      postData.slug ||
-      postData.title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)+/g, '');
+    if (!Array.isArray(dbData.categories)) dbData.categories = [];
+    const defaultCat = dbData.categories[0] || { id: 'cat-tech', name: 'Technology' };
+    const category = (postData.categoryId ? dbData.categories.find((c) => c.id === postData.categoryId) : null) || defaultCat;
+    
+    let rawSlug = postData.slug || postData.title;
+    let slug = rawSlug
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '');
+    if (!slug) slug = 'post-' + Date.now();
+
+    if (!Array.isArray(dbData.posts)) dbData.posts = [];
+    let finalSlug = slug;
+    let counter = 1;
+    while (dbData.posts.some((p) => p.slug === finalSlug)) {
+      finalSlug = `${slug}-${counter}`;
+      counter++;
+    }
 
     const newPost: Post = {
       id: 'post-' + Date.now(),
       title: postData.title,
-      slug,
+      slug: finalSlug,
       content: postData.content,
       excerpt: postData.excerpt || postData.content.replace(/<[^>]*>?/gm, '').slice(0, 160) + '...',
       featuredImage:
@@ -233,20 +250,20 @@ async function startServer() {
         'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1200&q=80',
       categoryId: category.id,
       categoryName: category.name,
-      tags: postData.tags || ['Technology'],
+      tags: Array.isArray(postData.tags) && postData.tags.length > 0 ? postData.tags : ['Technology'],
       author: postData.author || {
         id: 'auth-1',
-        name: dbData.settings.defaultAuthorName,
+        name: dbData.settings?.defaultAuthorName || 'Alex Rivera',
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
         role: 'Chief Editor',
       },
       status: postData.status || 'published',
-      featured: postData.featured || false,
-      trending: postData.trending || false,
+      featured: Boolean(postData.featured),
+      trending: Boolean(postData.trending),
       viewsCount: 0,
       readTimeMinutes: Math.max(1, Math.ceil(postData.content.split(' ').length / 200)),
       seoTitle: postData.seoTitle || postData.title,
-      metaDescription: postData.metaDescription || postData.excerpt,
+      metaDescription: postData.metaDescription || postData.excerpt || postData.title,
       publishedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -259,18 +276,23 @@ async function startServer() {
   // PUT /api/posts/:id - Update post (Admin)
   app.put('/api/posts/:id', (req: Request, res: Response) => {
     const id = req.params.id;
+    if (!Array.isArray(dbData.posts)) dbData.posts = [];
     const postIndex = dbData.posts.findIndex((p) => p.id === id);
 
     if (postIndex === -1) {
       return res.status(404).json({ error: 'Post not found' });
     }
 
-    const category = dbData.categories.find((c) => c.id === req.body.categoryId) || dbData.categories[0];
+    if (!Array.isArray(dbData.categories)) dbData.categories = [];
+    const defaultCat = dbData.categories[0] || { id: 'cat-tech', name: 'Technology' };
+    const category = (req.body.categoryId ? dbData.categories.find((c) => c.id === req.body.categoryId) : null) || defaultCat;
 
     const updatedPost: Post = {
       ...dbData.posts[postIndex],
       ...req.body,
+      categoryId: category ? category.id : dbData.posts[postIndex].categoryId,
       categoryName: category ? category.name : dbData.posts[postIndex].categoryName,
+      tags: Array.isArray(req.body.tags) ? req.body.tags : dbData.posts[postIndex].tags || ['Technology'],
       readTimeMinutes: req.body.content
         ? Math.max(1, Math.ceil(req.body.content.split(' ').length / 200))
         : dbData.posts[postIndex].readTimeMinutes,

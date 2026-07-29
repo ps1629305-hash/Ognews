@@ -37,7 +37,14 @@ export async function createPost(postData: Partial<Post>): Promise<{ success: bo
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(postData),
   });
-  if (!res.ok) throw new Error('Failed to create post');
+  if (!res.ok) {
+    let msg = 'Failed to create post';
+    try {
+      const data = await res.json();
+      if (data?.error) msg = data.error;
+    } catch {}
+    throw new Error(msg);
+  }
   return res.json();
 }
 
@@ -47,7 +54,14 @@ export async function updatePost(id: string, postData: Partial<Post>): Promise<{
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(postData),
   });
-  if (!res.ok) throw new Error('Failed to update post');
+  if (!res.ok) {
+    let msg = 'Failed to update post';
+    try {
+      const data = await res.json();
+      if (data?.error) msg = data.error;
+    } catch {}
+    throw new Error(msg);
+  }
   return res.json();
 }
 

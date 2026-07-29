@@ -104,14 +104,19 @@ export function App() {
     if (selectedPostSlug) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       fetchPostBySlug(selectedPostSlug)
-        .then(async (p) => {
-          setCurrentPost(p);
-          const [comms, rels] = await Promise.all([
-            fetchComments(p.id),
-            fetchPosts({ category: p.categoryId, limit: 4 }),
-          ]);
-          setPostComments(comms);
-          setRelatedPosts(rels.posts.filter((r) => r.id !== p.id).slice(0, 3));
+        .then(async (data) => {
+          if (data && data.post) {
+            setCurrentPost(data.post);
+            setPostComments(data.comments || []);
+            if (data.related && data.related.length > 0) {
+              setRelatedPosts(data.related);
+            } else if (data.post.categoryId) {
+              const rels = await fetchPosts({ category: data.post.categoryId, limit: 4 });
+              setRelatedPosts(rels.posts.filter((r) => r.id !== data.post.id).slice(0, 3));
+            } else {
+              setRelatedPosts([]);
+            }
+          }
         })
         .catch((err) => console.error(err));
     } else {
