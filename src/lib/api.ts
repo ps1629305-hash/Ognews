@@ -1,5 +1,30 @@
 import { Post, Category, Comment, Subscriber, AdConfig, SiteSettings, ContactMessage, AnalyticsSummary } from '../types';
 
+async function handleResponse<T>(res: Response, defaultErrorMsg = 'Request failed'): Promise<T> {
+  const contentType = res.headers.get('content-type') || '';
+  let data: any = null;
+
+  if (contentType.includes('application/json')) {
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error(`Invalid JSON response from server (${res.status})`);
+    }
+  } else {
+    const text = await res.text();
+    if (!res.ok) {
+      throw new Error(`Server returned error ${res.status}: ${text.slice(0, 100)}`);
+    }
+    throw new Error(`Expected JSON but server returned non-JSON content (${res.status})`);
+  }
+
+  if (!res.ok) {
+    throw new Error(data?.error || defaultErrorMsg);
+  }
+
+  return data as T;
+}
+
 export async function fetchPosts(params?: {
   category?: string;
   tag?: string;
@@ -21,14 +46,12 @@ export async function fetchPosts(params?: {
   if (params?.limit) query.append('limit', params.limit.toString());
 
   const res = await fetch(`/api/posts?${query.toString()}`);
-  if (!res.ok) throw new Error('Failed to fetch posts');
-  return res.json();
+  return handleResponse<{ posts: Post[]; total: number; page: number; totalPages: number }>(res, 'Failed to fetch posts');
 }
 
 export async function fetchPostBySlug(slug: string): Promise<{ post: Post; related: Post[]; comments: Comment[] }> {
   const res = await fetch(`/api/posts/${encodeURIComponent(slug)}`);
-  if (!res.ok) throw new Error('Post not found');
-  return res.json();
+  return handleResponse<{ post: Post; related: Post[]; comments: Comment[] }>(res, 'Post not found');
 }
 
 export async function createPost(postData: Partial<Post>): Promise<{ success: boolean; post: Post }> {
@@ -37,15 +60,7 @@ export async function createPost(postData: Partial<Post>): Promise<{ success: bo
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(postData),
   });
-  if (!res.ok) {
-    let msg = 'Failed to create post';
-    try {
-      const data = await res.json();
-      if (data?.error) msg = data.error;
-    } catch {}
-    throw new Error(msg);
-  }
-  return res.json();
+  return handleResponse<{ success: boolean; post: Post }>(res, 'Failed to create post');
 }
 
 export async function updatePost(id: string, postData: Partial<Post>): Promise<{ success: boolean; post: Post }> {
@@ -54,27 +69,17 @@ export async function updatePost(id: string, postData: Partial<Post>): Promise<{
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(postData),
   });
-  if (!res.ok) {
-    let msg = 'Failed to update post';
-    try {
-      const data = await res.json();
-      if (data?.error) msg = data.error;
-    } catch {}
-    throw new Error(msg);
-  }
-  return res.json();
+  return handleResponse<{ success: boolean; post: Post }>(res, 'Failed to update post');
 }
 
 export async function deletePost(id: string): Promise<{ success: boolean }> {
   const res = await fetch(`/api/posts/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete post');
-  return res.json();
+  return handleResponse<{ success: boolean }>(res, 'Failed to delete post');
 }
 
 export async function fetchCategories(): Promise<Category[]> {
   const res = await fetch('/api/categories');
-  if (!res.ok) throw new Error('Failed to fetch categories');
-  return res.json();
+  return handleResponse<Category[]>(res, 'Failed to fetch categories');
 }
 
 export async function createCategory(cat: { name: string; description?: string; color?: string; icon?: string }): Promise<{ success: boolean; category: Category }> {
@@ -83,21 +88,18 @@ export async function createCategory(cat: { name: string; description?: string; 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(cat),
   });
-  if (!res.ok) throw new Error('Failed to create category');
-  return res.json();
+  return handleResponse<{ success: boolean; category: Category }>(res, 'Failed to create category');
 }
 
 export async function deleteCategory(id: string): Promise<{ success: boolean }> {
   const res = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete category');
-  return res.json();
+  return handleResponse<{ success: boolean }>(res, 'Failed to delete category');
 }
 
 export async function fetchComments(postId?: string): Promise<Comment[]> {
   const url = postId ? `/api/comments?postId=${encodeURIComponent(postId)}` : '/api/comments';
   const res = await fetch(url);
-  if (!res.ok) throw new Error('Failed to fetch comments');
-  return res.json();
+  return handleResponse<Comment[]>(res, 'Failed to fetch comments');
 }
 
 export async function submitComment(data: { postId: string; authorName: string; authorEmail: string; content: string; parentId?: string | null }): Promise<{ success: boolean; comment: Comment; message: string }> {
@@ -106,8 +108,7 @@ export async function submitComment(data: { postId: string; authorName: string; 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to submit comment');
-  return res.json();
+  return handleResponse<{ success: boolean; comment: Comment; message: string }>(res, 'Failed to submit comment');
 }
 
 export async function moderateComment(id: string, status: 'approved' | 'spam'): Promise<{ success: boolean }> {
@@ -116,14 +117,12 @@ export async function moderateComment(id: string, status: 'approved' | 'spam'): 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
   });
-  if (!res.ok) throw new Error('Failed to update comment');
-  return res.json();
+  return handleResponse<{ success: boolean }>(res, 'Failed to update comment');
 }
 
 export async function deleteComment(id: string): Promise<{ success: boolean }> {
   const res = await fetch(`/api/comments/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete comment');
-  return res.json();
+  return handleResponse<{ success: boolean }>(res, 'Failed to delete comment');
 }
 
 export async function subscribeNewsletter(email: string, name?: string): Promise<{ success: boolean; message: string }> {
@@ -132,15 +131,12 @@ export async function subscribeNewsletter(email: string, name?: string): Promise
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, name }),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Failed to subscribe');
-  return data;
+  return handleResponse<{ success: boolean; message: string }>(res, 'Failed to subscribe');
 }
 
 export async function fetchSubscribers(): Promise<Subscriber[]> {
   const res = await fetch('/api/subscribers');
-  if (!res.ok) throw new Error('Failed to fetch subscribers');
-  return res.json();
+  return handleResponse<Subscriber[]>(res, 'Failed to fetch subscribers');
 }
 
 export async function sendContactMessage(data: { name: string; email: string; subject?: string; message: string }): Promise<{ success: boolean; message: string }> {
@@ -149,21 +145,17 @@ export async function sendContactMessage(data: { name: string; email: string; su
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  const resData = await res.json();
-  if (!res.ok) throw new Error(resData.error || 'Failed to send message');
-  return resData;
+  return handleResponse<{ success: boolean; message: string }>(res, 'Failed to send message');
 }
 
 export async function fetchContactMessages(): Promise<ContactMessage[]> {
   const res = await fetch('/api/contact');
-  if (!res.ok) throw new Error('Failed to fetch contact messages');
-  return res.json();
+  return handleResponse<ContactMessage[]>(res, 'Failed to fetch contact messages');
 }
 
 export async function fetchSettings(): Promise<SiteSettings> {
   const res = await fetch('/api/settings');
-  if (!res.ok) throw new Error('Failed to fetch settings');
-  return res.json();
+  return handleResponse<SiteSettings>(res, 'Failed to fetch settings');
 }
 
 export async function updateSettings(settings: Partial<SiteSettings>): Promise<{ success: boolean; settings: SiteSettings }> {
@@ -172,14 +164,12 @@ export async function updateSettings(settings: Partial<SiteSettings>): Promise<{
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(settings),
   });
-  if (!res.ok) throw new Error('Failed to update settings');
-  return res.json();
+  return handleResponse<{ success: boolean; settings: SiteSettings }>(res, 'Failed to update settings');
 }
 
 export async function fetchAdsConfig(): Promise<AdConfig> {
   const res = await fetch('/api/ads');
-  if (!res.ok) throw new Error('Failed to fetch ads config');
-  return res.json();
+  return handleResponse<AdConfig>(res, 'Failed to fetch ads config');
 }
 
 export async function updateAdsConfig(ads: Partial<AdConfig>): Promise<{ success: boolean; ads: AdConfig }> {
@@ -188,14 +178,12 @@ export async function updateAdsConfig(ads: Partial<AdConfig>): Promise<{ success
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(ads),
   });
-  if (!res.ok) throw new Error('Failed to update ads config');
-  return res.json();
+  return handleResponse<{ success: boolean; ads: AdConfig }>(res, 'Failed to update ads config');
 }
 
 export async function fetchAnalytics(): Promise<AnalyticsSummary> {
   const res = await fetch('/api/analytics');
-  if (!res.ok) throw new Error('Failed to fetch analytics');
-  return res.json();
+  return handleResponse<AnalyticsSummary>(res, 'Failed to fetch analytics');
 }
 
 export async function generateAIArticle(prompt: string, type: 'article' | 'seo', category?: string): Promise<{ success: boolean; result: any }> {
@@ -204,15 +192,12 @@ export async function generateAIArticle(prompt: string, type: 'article' | 'seo',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt, type, category }),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'AI generation failed');
-  return data;
+  return handleResponse<{ success: boolean; result: any }>(res, 'AI generation failed');
 }
 
 export async function exportPHPPackage(): Promise<{ success: boolean; schemaSql: string; dbPhp: string; instructions: string[] }> {
   const res = await fetch('/api/export/php');
-  if (!res.ok) throw new Error('Failed to export PHP package');
-  return res.json();
+  return handleResponse<{ success: boolean; schemaSql: string; dbPhp: string; instructions: string[] }>(res, 'Failed to export PHP package');
 }
 
 export async function adminLogin(email: string, password: string): Promise<{ success: boolean; token: string; user: any }> {
@@ -221,12 +206,9 @@ export async function adminLogin(email: string, password: string): Promise<{ suc
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Login failed');
-  return data;
+  return handleResponse<{ success: boolean; token: string; user: any }>(res, 'Login failed');
 }
 
 export const updateAdConfig = updateAdsConfig;
 export const fetchAdConfig = fetchAdsConfig;
 export const fetchPHPExport = exportPHPPackage;
-

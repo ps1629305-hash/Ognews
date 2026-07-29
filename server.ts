@@ -727,6 +727,11 @@ try {
     });
   });
 
+  // Catch-all 404 handler for unhandled /api requests to return JSON instead of HTML
+  app.all('/api/*', (req: Request, res: Response) => {
+    res.status(404).json({ error: `API route ${req.method} ${req.originalUrl} not found.` });
+  });
+
   // Vite Middleware for Dev or Static Files for Production
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
