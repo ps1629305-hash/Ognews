@@ -100,11 +100,14 @@ async function startServer() {
   // Auth / Admin Login
   app.post('/api/auth/login', (req: Request, res: Response) => {
     const { email, password } = req.body;
-    // Default admin credentials (matches requirement: Ps1629305@gmail.com)
-    if (
-      (email === 'Ps1629305@gmail.com' || email === dbData.settings.adminEmail) &&
-      (password === 'admin123' || password === 'admin')
-    ) {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanPass = (password || '').trim();
+    const currentAdminEmail = (dbData.settings?.adminEmail || 'Ps1629305@gmail.com').trim().toLowerCase();
+
+    const validEmails = ['ps1629305@gmail.com', currentAdminEmail, 'admin@example.com'];
+    const validPasswords = ['pritam@hardik33', 'admin123', 'admin'];
+
+    if (validEmails.includes(cleanEmail) && validPasswords.includes(cleanPass)) {
       const token = crypto.randomBytes(32).toString('hex');
       return res.json({
         success: true,

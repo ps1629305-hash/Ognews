@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, Mail, Key, ShieldCheck, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Lock, Mail, Key, AlertCircle, ArrowLeft } from 'lucide-react';
 import { adminLogin } from '../../lib/api';
 
 interface AdminLoginProps {
@@ -8,8 +8,8 @@ interface AdminLoginProps {
 }
 
 export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onBackToSite }) => {
-  const [email, setEmail] = useState('Ps1629305@gmail.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,16 +50,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onBackTo
           <p className="text-xs text-slate-500 dark:text-slate-400">
             Sign in to manage posts, categories, AdSense ads & analytics
           </p>
-        </div>
-
-        {/* Demo Credentials Alert Box */}
-        <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-3.5 rounded-2xl text-xs text-amber-800 dark:text-amber-300 space-y-1">
-          <div className="flex items-center space-x-1.5 font-bold">
-            <ShieldCheck className="w-4 h-4 text-amber-600" />
-            <span>Default Administrator Credentials:</span>
-          </div>
-          <p className="font-mono text-[11px] pl-5">Email: <strong>Ps1629305@gmail.com</strong></p>
-          <p className="font-mono text-[11px] pl-5">Password: <strong>admin123</strong></p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

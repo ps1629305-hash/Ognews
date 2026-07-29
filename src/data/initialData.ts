@@ -295,8 +295,8 @@ export const INITIAL_SUBSCRIBERS: Subscriber[] = [
 ];
 
 export const INITIAL_ADS_CONFIG: AdConfig = {
-  enabled: false,
-  googleAdSenseClientId: '',
+  enabled: true,
+  googleAdSenseClientId: 'ca-pub-6929883811300566',
   headerBanner: {
     enabled: false,
     slotId: '',

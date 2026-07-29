@@ -18,15 +18,18 @@ interface NavbarProps {
   settings: SiteSettings;
   categories: Category[];
   posts: Post[];
-  activeCategory: string | null;
+  activeCategory?: string | null;
+  selectedCategory?: string | null;
   onSelectCategory: (catId: string | null) => void;
   onOpenSearch: () => void;
   onOpenAdmin: () => void;
-  onSelectPage: (page: string) => void;
-  bookmarkedPostsCount: number;
-  onOpenBookmarks: () => void;
-  darkMode: boolean;
-  setDarkMode: (val: boolean) => void;
+  onSelectPage?: (page?: string) => void;
+  bookmarkedPostsCount?: number;
+  onOpenBookmarks?: () => void;
+  darkMode?: boolean;
+  isDarkMode?: boolean;
+  setDarkMode?: (val: boolean) => void;
+  onToggleDarkMode?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -38,7 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectCategory,
   onOpenSearch,
   onOpenAdmin,
-  onSelectPage = () => {},
+  onSelectPage = (_page?: string) => {},
   bookmarkedPostsCount = 0,
   onOpenBookmarks = () => {},
   darkMode = false,
