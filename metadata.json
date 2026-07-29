@@ -1,0 +1,6 @@
+{
+  "name": "OG News",
+  "description": "OG News (ognews.com) - A full-featured responsive daily news and blog publishing platform with Admin Panel, dark mode, AI content assistant, media library, and export capabilities.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
