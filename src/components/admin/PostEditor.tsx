@@ -117,18 +117,18 @@ export const PostEditor: React.FC<PostEditorProps> = ({
       .filter((t) => t.length > 0);
 
     const postPayload: Partial<Post> = {
-      title,
-      slug,
-      excerpt,
+      title: title.trim(),
+      slug: slug.trim() ? slug.trim() : undefined,
+      excerpt: excerpt.trim(),
       content,
-      featuredImage,
-      categoryId,
+      featuredImage: featuredImage.trim() || undefined,
+      categoryId: categoryId || (categories[0]?.id || 'cat-tech'),
       tags: tagsArr,
       status,
       featured,
       trending,
-      seoTitle: seoTitle || title,
-      metaDescription: metaDescription || excerpt,
+      seoTitle: (seoTitle || title).trim(),
+      metaDescription: (metaDescription || excerpt).trim(),
     };
 
     try {

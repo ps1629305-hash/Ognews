@@ -61,26 +61,28 @@ export function App() {
   });
 
   // Load initial global site data
-  const loadInitialData = async () => {
-    setLoading(true);
+  const loadInitialData = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     setError(null);
     try {
       const [postsRes, catsRes, adsRes, setRes] = await Promise.all([
-        fetchPosts({ limit: 30 }),
+        fetchPosts({ limit: 50 }),
         fetchCategories(),
         fetchAdConfig(),
         fetchSettings(),
       ]);
 
-      setPosts(postsRes.posts);
-      setCategories(catsRes);
+      setPosts(postsRes.posts || []);
+      setCategories(catsRes || []);
       setAdsConfig(adsRes);
       setSettings(setRes);
     } catch (err: any) {
       console.error('Error initializing site data:', err);
-      setError(err.message || 'Failed to connect to backend service.');
+      if (!isSilent) {
+        setError(err.message || 'Failed to connect to backend service.');
+      }
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 
@@ -220,7 +222,7 @@ export function App() {
         categories={categories}
         adsConfig={adsConfig}
         settings={settings}
-        onRefreshData={loadInitialData}
+        onRefreshData={() => loadInitialData(true)}
         onLogout={handleAdminLogout}
         onBackToSite={() => setIsAdminOpen(false)}
       />

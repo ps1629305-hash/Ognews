@@ -30,12 +30,12 @@ export const PostList: React.FC<PostListProps> = ({ categories, onEditPost, onNe
     setLoading(true);
     try {
       const res = await fetchPosts({
-        status: selectedStatus === 'all' ? undefined : selectedStatus,
+        status: selectedStatus,
         category: selectedCategory === 'all' ? undefined : selectedCategory,
         search: search.trim() || undefined,
         limit: 50,
       });
-      setPosts(res.posts);
+      setPosts(res.posts || []);
     } catch (err) {
       console.error('Failed to load posts:', err);
     } finally {

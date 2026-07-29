@@ -124,14 +124,14 @@ async function startServer() {
     let posts = Array.isArray(dbData.posts) ? [...dbData.posts] : [];
     const { category, tag, search, status, featured, trending, page = '1', limit = '10' } = req.query;
 
-    if (status) {
+    if (status && status !== 'all') {
       posts = posts.filter((p) => p.status === status);
-    } else {
+    } else if (!status) {
       // By default public API shows published posts
       posts = posts.filter((p) => p.status === 'published');
     }
 
-    if (category) {
+    if (category && category !== 'all') {
       posts = posts.filter(
         (p) => p.categoryId === category || p.categoryName?.toLowerCase() === (category as string).toLowerCase()
       );
@@ -223,7 +223,7 @@ async function startServer() {
     const defaultCat = dbData.categories[0] || { id: 'cat-tech', name: 'Technology' };
     const category = (postData.categoryId ? dbData.categories.find((c) => c.id === postData.categoryId) : null) || defaultCat;
     
-    let rawSlug = postData.slug || postData.title;
+    let rawSlug = (postData.slug && typeof postData.slug === 'string' && postData.slug.trim()) || postData.title;
     let slug = rawSlug
       .toLowerCase()
       .trim()
@@ -287,12 +287,23 @@ async function startServer() {
     const defaultCat = dbData.categories[0] || { id: 'cat-tech', name: 'Technology' };
     const category = (req.body.categoryId ? dbData.categories.find((c) => c.id === req.body.categoryId) : null) || defaultCat;
 
+    let newSlug = dbData.posts[postIndex].slug;
+    if (req.body.slug && typeof req.body.slug === 'string' && req.body.slug.trim()) {
+      let cleaned = req.body.slug
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)+/g, '');
+      if (cleaned) newSlug = cleaned;
+    }
+
     const updatedPost: Post = {
       ...dbData.posts[postIndex],
       ...req.body,
+      slug: newSlug,
       categoryId: category ? category.id : dbData.posts[postIndex].categoryId,
       categoryName: category ? category.name : dbData.posts[postIndex].categoryName,
-      tags: Array.isArray(req.body.tags) ? req.body.tags : dbData.posts[postIndex].tags || ['Technology'],
+      tags: Array.isArray(req.body.tags) && req.body.tags.length > 0 ? req.body.tags : dbData.posts[postIndex].tags || ['Technology'],
       readTimeMinutes: req.body.content
         ? Math.max(1, Math.ceil(req.body.content.split(' ').length / 200))
         : dbData.posts[postIndex].readTimeMinutes,
